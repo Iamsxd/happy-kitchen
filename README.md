@@ -19,7 +19,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-默认仅监听 `127.0.0.1:3000`。推荐在 Unraid 安装官方 Tailscale 插件后，通过 Tailscale Serve 提供 Tailnet 内 HTTPS 访问；不要在路由器映射应用端口，也不要启用 Funnel。
+容器内部始终监听 `3000`，实际访问端口由 `HOST_PORT` 决定。`.env.example` 默认配置为受信任家庭局域网直连：`HOST_BIND_ADDRESS=0.0.0.0`，例如设置 `HOST_PORT=8086` 后访问 `http://NAS-LAN-IP:8086`。`localhost` 与 `127.0.0.1` 都只允许 NAS 本机访问。不要在路由器映射应用端口或启用 UPnP；如需远程访问，应另行使用 HTTPS 反向代理或私有网络入口。
 
 数据库位于 `APPDATA_PATH` 的 `happy-kitchen.db`。使用 `deploy/unraid/backup.sh` 创建在线备份，并保留加密的异机副本；恢复前必须停止服务。
 
