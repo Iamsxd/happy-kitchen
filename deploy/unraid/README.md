@@ -8,15 +8,22 @@ D1, or a public internet port.
    `/mnt/user/appdata/happy-kitchen/app`.
 2. Copy `.env.example` to `.env` and set `APPDATA_PATH` to an AppData data
    folder, for example `/mnt/user/appdata/happy-kitchen/data`.
-3. Run `docker compose up -d --build`.
-4. Install the official Unraid Tailscale plugin, then publish only the local
-   listener with `tailscale serve --https=443 http://127.0.0.1:3000`.
-5. Open the Tailnet HTTPS address and register the first account. It becomes
-   the application administrator and the household owner.
+3. For trusted-LAN access, set `HOST_BIND_ADDRESS=0.0.0.0` and choose the host
+   port in `HOST_PORT` (for example `8086`). Run
+   `docker compose up -d --build`, then open `http://<NAS-LAN-IP>:8086`.
+   The `3000` shown in container logs is the internal container port; it is not
+   the port users access.
+4. Do not expose this HTTP listener through router port-forwarding or UPnP.
+   If remote access is needed later, put an authenticated HTTPS reverse proxy
+   or a private overlay network in front of it instead.
+5. Register the first account. It becomes the application administrator and
+   the household owner.
 
-The Compose file is deliberately defensive: loopback-only port binding, bridge
-networking, non-root execution, read-only root filesystem, no extra Linux
-capabilities, no privileged mode, and no Docker socket mount.
+The Compose file is deliberately defensive: configurable listener binding,
+bridge networking, non-root execution, read-only root filesystem, no extra
+Linux capabilities, no privileged mode, and no Docker socket mount. Use
+`HOST_BIND_ADDRESS=127.0.0.1` when another local proxy is the only intended
+entry point.
 
 Use `backup.sh` for an online SQLite backup and `restore.sh` for a stopped
 service restore. Keep at least one encrypted copy off the NAS and rehearse a
