@@ -37,7 +37,7 @@ test("stores password hashes and protects cookie based sessions", async () => {
 
 test("ships a Node.js and SQLite self-hosted deployment with defense in depth", async () => {
   const [manifest, packageJson, nextConfig, dockerfile, compose, runtime, guide, env, importer] = await Promise.all([
-    file("public/manifest.webmanifest"), file("package.json"), file("next.config.ts"), file("Dockerfile"), file("docker-compose.yml"), file("db/runtime.ts"), file("docs/NAS与Unraid部署安全方案_v0.1.md"), file(".env.example"), file("scripts/import-d1-export.mjs"),
+    file("public/manifest.webmanifest"), file("package.json"), file("next.config.ts"), file("Dockerfile"), file("docker-compose.yml"), file("db/runtime.ts"), file("docs/nas-unraid-security.md"), file(".env.example"), file("scripts/import-d1-export.mjs"),
   ]);
   assert.match(manifest, /"display": "standalone"/);
   assert.match(packageJson, /"next build"/);
