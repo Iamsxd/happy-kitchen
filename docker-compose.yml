@@ -20,7 +20,7 @@ services:
     volumes:
       - "${APPDATA_PATH:-./data}:/data"
     ports:
-      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${HOST_PORT:-3000}:3000"
+      - "0.0.0.0:${HOST_PORT:-3000}:3000"
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=64m
