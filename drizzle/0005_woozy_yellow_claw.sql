@@ -1,0 +1,1 @@
+CREATE INDEX `auth_login_attempts_last_attempt_idx` ON `auth_login_attempts` (`last_attempt_at`);

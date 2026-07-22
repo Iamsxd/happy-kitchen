@@ -1,0 +1,35 @@
+name: happy-kitchen
+
+services:
+  happy-kitchen:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: happy-kitchen:local
+    container_name: happy-kitchen
+    restart: unless-stopped
+    init: true
+    user: "${PUID:-99}:${PGID:-100}"
+    environment:
+      TZ: "${TZ:-Asia/Shanghai}"
+      HOST: "0.0.0.0"
+      PORT: "3000"
+      DATABASE_PATH: "/data/happy-kitchen.db"
+      ENABLE_CHATGPT_LOGIN: "false"
+    volumes:
+      - "${APPDATA_PATH:-./data}:/data"
+    ports:
+      - "127.0.0.1:${HOST_PORT:-3000}:3000"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
