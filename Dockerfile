@@ -26,6 +26,7 @@ RUN groupadd --gid 10001 happykitchen && useradd --uid 10001 --gid 10001 --creat
 COPY --from=builder --chown=10001:10001 /app/public ./public
 COPY --from=builder --chown=10001:10001 /app/.next/standalone ./
 COPY --from=builder --chown=10001:10001 /app/.next/static ./.next/static
+COPY --from=builder --chown=10001:10001 /app/scripts ./scripts
 
 USER 10001:10001
 EXPOSE 3000

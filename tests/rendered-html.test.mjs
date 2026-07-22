@@ -36,8 +36,8 @@ test("stores password hashes and protects cookie based sessions", async () => {
 });
 
 test("ships a Node.js and SQLite self-hosted deployment with defense in depth", async () => {
-  const [manifest, packageJson, nextConfig, dockerfile, compose, runtime, guide, env] = await Promise.all([
-    file("public/manifest.webmanifest"), file("package.json"), file("next.config.ts"), file("Dockerfile"), file("docker-compose.yml"), file("db/runtime.ts"), file("docs/NAS与Unraid部署安全方案_v0.1.md"), file(".env.example"),
+  const [manifest, packageJson, nextConfig, dockerfile, compose, runtime, guide, env, importer] = await Promise.all([
+    file("public/manifest.webmanifest"), file("package.json"), file("next.config.ts"), file("Dockerfile"), file("docker-compose.yml"), file("db/runtime.ts"), file("docs/NAS与Unraid部署安全方案_v0.1.md"), file(".env.example"), file("scripts/import-d1-export.mjs"),
   ]);
   assert.match(manifest, /"display": "standalone"/);
   assert.match(packageJson, /"next build"/);
@@ -53,8 +53,11 @@ test("ships a Node.js and SQLite self-hosted deployment with defense in depth", 
   assert.match(runtime, /better-sqlite3/);
   assert.match(runtime, /DATABASE_PATH/);
   assert.match(guide, /Docker Compose/);
+  assert.match(guide, /wrangler d1 export/);
   assert.match(guide, /Tailscale Serve/);
   assert.match(env, /APPDATA_PATH/);
+  assert.match(importer, /Refusing to overwrite existing database/);
+  assert.match(importer, /stagingPath/);
   await access(new URL("../deploy/unraid/backup.sh", import.meta.url));
   await access(new URL("../deploy/unraid/restore.sh", import.meta.url));
   await assert.rejects(access(new URL("../worker/index.ts", import.meta.url)));

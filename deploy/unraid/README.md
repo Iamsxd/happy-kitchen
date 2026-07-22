@@ -21,3 +21,25 @@ capabilities, no privileged mode, and no Docker socket mount.
 Use `backup.sh` for an online SQLite backup and `restore.sh` for a stopped
 service restore. Keep at least one encrypted copy off the NAS and rehearse a
 restore before relying on the backups.
+
+## Move existing Cloudflare D1 data once
+
+If this is replacing the previous Cloudflare deployment, export its full D1
+database before starting the NAS app for the first time:
+
+```bash
+npx wrangler d1 export <database_name> --remote --output=./d1-export.sql
+```
+
+Copy that SQL file to the persistent data folder, stop the service, then run
+the one-time import. It refuses to overwrite an existing SQLite database and
+imports through a staging file before publishing it.
+
+```bash
+docker compose run --rm --no-deps happy-kitchen node scripts/import-d1-export.mjs /data/d1-export.sql
+docker compose up -d
+```
+
+After you have verified the accounts and household data, move the SQL export
+to encrypted offline storage or remove it from the NAS. It contains password
+hashes and all household data, so it must never be committed to Git.
