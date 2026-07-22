@@ -2,7 +2,10 @@
 .next
 dist
 node_modules
-data
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/backups
 work
 .env
 .env.*
