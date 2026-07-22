@@ -47,6 +47,7 @@ test("ships a Node.js and SQLite self-hosted deployment with defense in depth", 
   assert.match(nextConfig, /Cache-Control.*no-store/);
   assert.match(dockerfile, /node:22-bookworm-slim/);
   assert.match(dockerfile, /USER 10001:10001/);
+  assert.match(compose, /HOST_BIND_ADDRESS/);
   assert.match(compose, /127\.0\.0\.1/);
   assert.match(compose, /read_only: true/);
   assert.match(compose, /cap_drop/);
@@ -54,8 +55,9 @@ test("ships a Node.js and SQLite self-hosted deployment with defense in depth", 
   assert.match(runtime, /DATABASE_PATH/);
   assert.match(guide, /Docker Compose/);
   assert.match(guide, /wrangler d1 export/);
-  assert.match(guide, /Tailscale Serve/);
+  assert.match(guide, /HOST_BIND_ADDRESS=0\.0\.0\.0/);
   assert.match(env, /APPDATA_PATH/);
+  assert.match(env, /HOST_BIND_ADDRESS=0\.0\.0\.0/);
   assert.match(importer, /Refusing to overwrite existing database/);
   assert.match(importer, /stagingPath/);
   await access(new URL("../deploy/unraid/backup.sh", import.meta.url));
