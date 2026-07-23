@@ -87,8 +87,8 @@ test("supports a single shared household with individual adult accounts", async 
 });
 
 test("supports detailed recipes, full HowToCook learning and practical shopping purchases", async () => {
-  const [app, actions, state, kitchen, importer, howToCookApi, catalogText, styles, migration] = await Promise.all([
-    file("app/HappyKitchenApp.tsx"), file("app/api/actions/route.ts"), file("app/api/state/route.ts"), file("db/kitchen.ts"), file("app/howtocook-import.ts"), file("app/api/howtocook/route.ts"), file("data/howtocook-catalog.json"), file("app/globals.css"), file("drizzle/0002_glorious_charles_xavier.sql"),
+  const [app, actions, state, kitchen, importer, guideRecipes, bootstrap, howToCookApi, catalogText, styles, migration] = await Promise.all([
+    file("app/HappyKitchenApp.tsx"), file("app/api/actions/route.ts"), file("app/api/state/route.ts"), file("db/kitchen.ts"), file("app/howtocook-import.ts"), file("db/north-china-obesity-guide.ts"), file("db/bootstrap.ts"), file("app/api/howtocook/route.ts"), file("data/howtocook-catalog.json"), file("app/globals.css"), file("drizzle/0002_glorious_charles_xavier.sql"),
   ]);
   assert.match(app, /IMPORT_HOWTOCOOK/);
   assert.match(app, /ingredientsDetailed/);
@@ -100,6 +100,9 @@ test("supports detailed recipes, full HowToCook learning and practical shopping 
   assert.match(state, /shopping_list_items/);
   assert.match(kitchen, /required - available/);
   assert.match(importer, /parseLearningArticle/);
+  assert.match(guideRecipes, /NORTH_CHINA_OBESITY_GUIDE_RECIPES/);
+  assert.match(guideRecipes, /成人肥胖食养指南（2024年版）/);
+  assert.match(bootstrap, /seedNorthChinaGuideRecipes/);
   assert.match(howToCookApi, /listHowToCookRecipes/);
   const catalog = JSON.parse(catalogText);
   assert.equal(catalog.source, "Anduin2017/HowToCook");
