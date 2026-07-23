@@ -1,5 +1,7 @@
 import { env } from "./runtime";
-import { saveRecipeDetails } from "./kitchen";
+import { normalizeIngredientCode, saveRecipeDetails } from "./kitchen";
+import { NORTH_CHINA_GUIDE_SOURCE, NORTH_CHINA_OBESITY_GUIDE_RECIPES, northChinaGuideDescription } from "./north-china-obesity-guide";
+import { estimateRecipeNutrition } from "../app/nutrition";
 import type { AppDatabase, AppPreparedStatement } from "./types";
 
 const schemaStatements = [
@@ -52,7 +54,10 @@ export async function ensureDatabase(accountId: string, displayName?: string) {
   const db = await ensureSchema();
   const userId = normaliseAccountId(accountId);
   const membership = await getHouseholdMembership(userId);
-  if (membership) return membership.household_id;
+  if (membership) {
+    await seedNorthChinaGuideRecipes(db, membership.household_id);
+    return membership.household_id;
+  }
 
   const legacy = await db.prepare("SELECT id FROM households WHERE owner_email=? LIMIT 1").bind(`account:${userId}`).first<{ id: string }>();
   if (legacy) {
@@ -86,6 +91,7 @@ export async function ensureDatabase(accountId: string, displayName?: string) {
   ];
   await db.batch(writes);
   await seedStarterRecipe(db, householdId);
+  await seedNorthChinaGuideRecipes(db, householdId);
   return householdId;
 }
 
@@ -146,6 +152,27 @@ async function seedStarterRecipe(db: AppDatabase, householdId: string) {
     [{ code: "tomato", name: "西红柿", quantity: 300, unit: "g", grams: 300 }, { code: "egg", name: "鸡蛋", quantity: 3, unit: "个", grams: 150 }, { code: "cooking-oil", name: "食用油", quantity: 15, unit: "g", grams: 15 }],
     [{ instruction: "西红柿洗净切块，鸡蛋打散。" }, { instruction: "热锅加油，炒熟鸡蛋后盛出。", timerSeconds: 90 }, { instruction: "炒软西红柿，放回鸡蛋调味后出锅。", timerSeconds: 180 }],
     { type: "DEMO", name: "快乐厨房示例菜谱", parserVersion: "selfhost-v1" });
+}
+
+async function seedNorthChinaGuideRecipes(db: AppDatabase, householdId: string) {
+  const now = new Date().toISOString();
+  for (const recipe of NORTH_CHINA_OBESITY_GUIDE_RECIPES) {
+    const id = `${householdId}-guide-north-${recipe.slug}`;
+    const ingredients = recipe.ingredients.map((ingredient) => ({
+      ...ingredient,
+      code: ingredient.code || normalizeIngredientCode(ingredient.name),
+    }));
+    const legacyIngredients = ingredients.map((ingredient) => ({ code: ingredient.code, name: ingredient.name, grams: ingredient.grams }));
+    const nutrition = estimateRecipeNutrition(legacyIngredients);
+    const inserted = await db.prepare("INSERT OR IGNORE INTO recipes (id,household_id,title,description,emoji,cook_minutes,servings,cuisine_code,completeness_status,verification_status,ingredients_json,nutrition_json,tags_json,version_no,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,'ACTIVE',?)")
+      .bind(id, householdId, recipe.title, northChinaGuideDescription(recipe), recipe.emoji, recipe.cookMinutes, "1", "CHINESE", "COMPLETE", "GUIDE_REFERENCED", JSON.stringify(legacyIngredients), JSON.stringify({ ...nutrition, source: "INGREDIENT_ESTIMATE" }), JSON.stringify(["华北地区", "食养参考", recipe.season, `${recipe.dailyEnergy} kcal 全日示例`]), now).run();
+    if (!inserted.meta.changes) continue;
+    const steps = recipe.steps.map((step) => ({
+      ...step,
+      ingredientCodes: ingredients.filter((ingredient) => step.instruction.includes(ingredient.name)).map((ingredient) => ingredient.code!).filter(Boolean),
+    }));
+    await saveRecipeDetails(db, id, ingredients, steps, NORTH_CHINA_GUIDE_SOURCE);
+  }
 }
 
 function normaliseAccountId(value: string) { return value.replace(/^account:/, ""); }
