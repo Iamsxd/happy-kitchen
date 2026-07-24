@@ -6,6 +6,7 @@ import { assertRecipeAllowed, planParticipants, rankRecipes } from "../../../db/
 import { estimateRecipeNutrition, isUsableNutrition } from "../../nutrition";
 import { getSessionUserFromRequest } from "../../auth";
 import { findHowToCookRecipe, HOW_TO_COOK_META, parseHowToCookMarkdown } from "../../howtocook-import";
+import { loadLocalOcrRecipeImport } from "../../local-ocr-recipe-import";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
     if (action === "ADD_RECIPE") return addRecipe(body, householdId);
     if (action === "UPDATE_RECIPE") return updateRecipe(body, householdId);
     if (action === "IMPORT_HOWTOCOOK") return importHowToCook(body, householdId);
+    if (action === "IMPORT_LOCAL_OCR_RECIPES") return importLocalOcrRecipes(householdId);
     if (action === "RECALCULATE_SHOPPING") return recalculateShopping(householdId);
     if (action === "ADD_SHOPPING_ITEM") return addShoppingItem(body, householdId);
     if (action === "TOGGLE_SHOPPING_ITEM") return toggleShoppingItem(body, householdId);
@@ -198,6 +200,33 @@ async function importHowToCook(body: Record<string, unknown>, householdId: strin
     parserVersion: "howtocook-md-v2",
   });
   return Response.json({ ok: true, id });
+}
+
+async function importLocalOcrRecipes(householdId: string) {
+  const payload = await loadLocalOcrRecipeImport();
+  let imported = 0, skipped = 0, needsReview = 0;
+  for (const recipe of payload.recipes) {
+    const sourceId = String(recipe.sourceId ?? "").trim().slice(0, 180);
+    const title = String(recipe.title ?? "").trim().slice(0, 120);
+    if (!sourceId || !title) { skipped += 1; continue; }
+    const sourceKey = `local-ocr:${sourceId}`;
+    const existing = await env.DB.prepare("SELECT r.id FROM recipes r JOIN recipe_sources s ON s.recipe_id=r.id WHERE r.household_id=? AND s.source_type='LOCAL_IMAGE_OCR' AND s.parser_version=? LIMIT 1").bind(householdId, sourceKey).first();
+    if (existing) { skipped += 1; continue; }
+    const ingredients = parseRecipeIngredients(Array.isArray(recipe.ingredients) ? recipe.ingredients : []);
+    const steps = parseRecipeSteps(Array.isArray(recipe.steps) ? recipe.steps : [], ingredients);
+    const requiresReview = recipe.needsReview !== false || !ingredients.length || !steps.length;
+    const id = `${householdId}-ocr-${crypto.randomUUID()}`;
+    const legacyIngredients = ingredients.map((ingredient) => ({ code: ingredient.code, name: ingredient.name, grams: ingredient.grams }));
+    const nutrition = resolveRecipeNutrition(ingredients, {});
+    await env.DB.prepare("INSERT INTO recipes (id,household_id,title,description,emoji,cook_minutes,servings,cuisine_code,completeness_status,verification_status,ingredients_json,nutrition_json,tags_json,version_no,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,'ACTIVE',?)")
+      .bind(id, householdId, title, String(recipe.description ?? "本地图片 OCR 导入；请在烹饪前复核内容。").slice(0, 500), String(recipe.emoji ?? "🍲").slice(0, 10), Math.max(1, Math.min(240, Number(recipe.cookMinutes ?? 30) || 30)), String(recipe.servings ?? "1").slice(0, 20), "CHINESE", requiresReview ? "PARTIAL" : "COMPLETE", requiresReview ? "OCR_NEEDS_REVIEW" : "OCR_REVIEWED", JSON.stringify(legacyIngredients), JSON.stringify(nutrition), JSON.stringify(["本地图片 OCR", "隋卞一做菜谱", ...(requiresReview ? ["待核对"] : [])]), new Date().toISOString()).run();
+    await saveRecipeDetails(env.DB, id, ingredients, steps, {
+      type: "LOCAL_IMAGE_OCR", name: `${payload.source} · 需核对原图`, parserVersion: sourceKey,
+    });
+    imported += 1;
+    if (requiresReview) needsReview += 1;
+  }
+  return Response.json({ ok: true, imported, skipped, needsReview });
 }
 
 async function recalculateShopping(householdId: string) {
