@@ -40,7 +40,8 @@ def clean_text(value: str) -> str:
 
 
 def source_title(folder: Path) -> str:
-    title = re.sub(r"^\d{4}-\d{2}-\d{2}-", "", folder.name).strip()
+    title = re.sub(r"^\d{4}-\d{2}-\d{2}(?:~\d{1,2})?[-_ ]*", "", folder.name).strip()
+    title = re.sub(r"(?<=-)\d{4}-\d{2}-\d{2}-", "", title)
     return title or folder.name
 
 
@@ -243,6 +244,12 @@ def main() -> None:
                 if isinstance(recipe, dict) and recipe.get("sourceId"):
                     merged[str(recipe["sourceId"])] = recipe
         recipes = [merged[key] for key in sorted(merged)]
+        markdown_dir = output / "markdown"
+        markdown_dir.mkdir(parents=True, exist_ok=True)
+        for recipe in recipes:
+            recipe["title"] = source_title(Path(str(recipe.get("sourceFolder") or recipe["sourceId"])))
+            safe_name = re.sub(r'[<>:"/\\\\|?*]', "_", str(recipe["sourceId"]).replace("/", "-"))
+            (markdown_dir / f"{safe_name}.md").write_text(markdown(recipe), encoding="utf-8")
         payload = {"format": "happy-kitchen-local-ocr-recipe-import/v1", "source": "隋卞一做教做菜（本地图片 OCR）", "generatedAt": datetime.now(timezone.utc).isoformat(), "recipeCount": len(recipes), "recipes": recipes}
         (output / "sui-one-recipes.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         report = {"recipeCount": len(recipes), "readyForCompleteImport": sum(not recipe["needsReview"] for recipe in recipes), "needsReview": sum(recipe["needsReview"] for recipe in recipes), "averageConfidence": round(sum(recipe["ocrConfidence"] for recipe in recipes) / len(recipes), 4) if recipes else 0, "lowConfidence": [recipe["title"] for recipe in recipes if recipe["ocrConfidence"] < 0.95], "unresolvedIngredientCount": sum(len(recipe["unresolvedIngredients"]) for recipe in recipes)}
