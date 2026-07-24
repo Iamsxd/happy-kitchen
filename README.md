@@ -23,6 +23,8 @@ docker compose up -d --build
 
 数据库位于 `APPDATA_PATH` 的 `happy-kitchen.db`。使用 `deploy/unraid/backup.sh` 创建在线备份，并保留加密的异机副本；恢复前必须停止服务。
 
+本地图片 OCR 菜谱的私有导出、NAS 放置位置和去重/核对规则见 [docs/本地图片菜谱导入.md](docs/本地图片菜谱导入.md)。
+
 ## 本地开发
 
 需要 Node.js 22 或更新版本。
