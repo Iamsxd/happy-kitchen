@@ -87,8 +87,8 @@ test("supports a single shared household with individual adult accounts", async 
 });
 
 test("supports detailed recipes, full HowToCook learning and practical shopping purchases", async () => {
-  const [app, actions, state, kitchen, importer, guideRecipes, bootstrap, howToCookApi, catalogText, styles, migration] = await Promise.all([
-    file("app/HappyKitchenApp.tsx"), file("app/api/actions/route.ts"), file("app/api/state/route.ts"), file("db/kitchen.ts"), file("app/howtocook-import.ts"), file("db/north-china-obesity-guide.ts"), file("db/bootstrap.ts"), file("app/api/howtocook/route.ts"), file("data/howtocook-catalog.json"), file("app/globals.css"), file("drizzle/0002_glorious_charles_xavier.sql"),
+  const [app, actions, state, kitchen, importer, localOcrImport, guideRecipes, bootstrap, howToCookApi, catalogText, styles, migration] = await Promise.all([
+    file("app/HappyKitchenApp.tsx"), file("app/api/actions/route.ts"), file("app/api/state/route.ts"), file("db/kitchen.ts"), file("app/howtocook-import.ts"), file("app/local-ocr-recipe-import.ts"), file("db/north-china-obesity-guide.ts"), file("db/bootstrap.ts"), file("app/api/howtocook/route.ts"), file("data/howtocook-catalog.json"), file("app/globals.css"), file("drizzle/0002_glorious_charles_xavier.sql"),
   ]);
   assert.match(app, /IMPORT_HOWTOCOOK/);
   assert.match(app, /ingredientsDetailed/);
@@ -97,6 +97,9 @@ test("supports detailed recipes, full HowToCook learning and practical shopping 
   assert.match(app, /LearningView/);
   assert.match(actions, /saveRecipeDetails/);
   assert.match(actions, /synchronizeShoppingList/);
+  assert.match(actions, /IMPORT_LOCAL_OCR_RECIPES/);
+  assert.match(app, /导入本地菜谱/);
+  assert.match(localOcrImport, /LOCAL_OCR_RECIPE_IMPORT_PATH/);
   assert.match(state, /shopping_list_items/);
   assert.match(kitchen, /required - available/);
   assert.match(importer, /parseLearningArticle/);
