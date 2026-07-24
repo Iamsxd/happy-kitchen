@@ -26,7 +26,10 @@ except ImportError as error:  # pragma: no cover - operational guidance only
 
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
-SECTION_HEADINGS = {"食材": "ingredients", "备菜": "prep", "制作": "cook", "做法": "cook", "调料": "ingredients"}
+SECTION_HEADINGS = {
+    "食材": "ingredients", "配料": "ingredients", "调料": "ingredients",
+    "备菜": "prep", "制作": "cook", "做法": "cook", "步骤": "cook", "制作步骤": "cook", "烹饪": "cook",
+}
 TIMESTAMP = re.compile(r"[（(]?\s*(\d{1,2})\s*[:：]\s*(\d{2})\s*[)）]?")
 GRAMS = re.compile(r"(?:约|共|净)?\s*(\d+(?:\.\d+)?)\s*(?:g|克)\b", re.IGNORECASE)
 
@@ -67,7 +70,8 @@ def ocr_image(engine: RapidOCR, path: Path, max_width: int) -> dict[str, Any]:
 
 
 def split_ingredient_candidates(raw: str) -> list[str]:
-    text = raw.replace("；", "，").replace("、", "，").replace("。", "，")
+    text = raw.replace("\r\n", "，").replace("\n", "，").replace("\r", "，")
+    text = text.replace("；", "，").replace("、", "，").replace("。", "，")
     text = re.sub(r"\s+", "", text)
     return [item.strip(" ，,。") for item in text.split("，") if item.strip(" ，,。")]
 
@@ -220,6 +224,38 @@ def extract_recipe(engine: RapidOCR, root: Path, tail_folder: Path, max_width: i
     }
 
 
+def refresh_recipe_from_pages(recipe: dict[str, Any]) -> None:
+    pages = [page for page in recipe.get("ocrPages", []) if isinstance(page, dict)]
+    sections: dict[str, list[str]] = {"ingredients": [], "prep": [], "cook": []}
+    current = "cook"
+    confidences: list[float] = []
+    for page in pages:
+        for line in page.get("lines", []):
+            if not isinstance(line, dict):
+                continue
+            text = clean_text(str(line.get("text", "")))
+            if not text:
+                continue
+            try:
+                confidences.append(float(line.get("confidence", 0)))
+            except (TypeError, ValueError):
+                pass
+            heading = detect_section(text)
+            if heading:
+                current = heading
+                continue
+            sections[current].append(text)
+    ingredients, unresolved = parse_ingredients("\n".join(sections["ingredients"]))
+    steps = timed_steps(sections["prep"] + sections["cook"])
+    confidence = round(sum(confidences) / len(confidences), 4) if confidences else 0.0
+    recipe["ingredients"] = ingredients
+    recipe["unresolvedIngredients"] = unresolved
+    recipe["steps"] = steps
+    recipe["cookMinutes"] = cook_minutes(pages, steps)
+    recipe["ocrConfidence"] = confidence
+    recipe["needsReview"] = confidence < 0.95 or not ingredients or not steps or bool(unresolved)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="将隋卞一做教做菜的片尾图片导出为 Markdown 和私有导入 JSON")
     parser.add_argument("--input", type=Path, required=True, help="包含菜谱子文件夹的根目录")
@@ -247,6 +283,7 @@ def main() -> None:
         markdown_dir = output / "markdown"
         markdown_dir.mkdir(parents=True, exist_ok=True)
         for recipe in recipes:
+            refresh_recipe_from_pages(recipe)
             recipe["title"] = source_title(Path(str(recipe.get("sourceFolder") or recipe["sourceId"])))
             safe_name = re.sub(r'[<>:"/\\\\|?*]', "_", str(recipe["sourceId"]).replace("/", "-"))
             (markdown_dir / f"{safe_name}.md").write_text(markdown(recipe), encoding="utf-8")
