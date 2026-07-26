@@ -1,8 +1,21 @@
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
+import { extractExplicitIngredients } from "../scripts/reconcile-local-ocr-recipes.mjs";
 
 const file = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
+
+test("reconciles only OCR text with an explicit ingredient quantity", () => {
+  const cardItems = extractExplicitIngredients("\u9a6c\u8e44 4\u4e2a\uff0c\u76d05\u514b\uff0c\u5207\u6210\u516d\u5757");
+  assert.deepEqual(cardItems.map(({ name, quantity, unit }) => ({ name, quantity, unit })), [
+    { name: "\u9a6c\u8e44", quantity: 4, unit: "\u4e2a" },
+    { name: "\u76d0", quantity: 5, unit: "g" },
+  ]);
+  const instructionItems = extractExplicitIngredients("\u9505\u91cc\u52a0150\u514b\u6cb9\uff0c\u5207\u6210\u516d\u5757", { allowNamedFirst: false });
+  assert.deepEqual(instructionItems.map(({ name, quantity, unit }) => ({ name, quantity, unit })), [
+    { name: "\u6cb9", quantity: 150, unit: "g" },
+  ]);
+});
 
 test("defines the authenticated Happy Kitchen application shell", async () => {
   const [page, portal, app, admin, layout] = await Promise.all([
@@ -87,8 +100,8 @@ test("supports a single shared household with individual adult accounts", async 
 });
 
 test("supports detailed recipes, full HowToCook learning and practical shopping purchases", async () => {
-  const [app, actions, state, kitchen, importer, suiImporter, guideRecipes, bootstrap, howToCookApi, catalogText, styles, migration] = await Promise.all([
-    file("app/HappyKitchenApp.tsx"), file("app/api/actions/route.ts"), file("app/api/state/route.ts"), file("db/kitchen.ts"), file("app/howtocook-import.ts"), file("scripts/import-local-ocr-recipes.mjs"), file("db/north-china-obesity-guide.ts"), file("db/bootstrap.ts"), file("app/api/howtocook/route.ts"), file("data/howtocook-catalog.json"), file("app/globals.css"), file("drizzle/0002_glorious_charles_xavier.sql"),
+  const [app, actions, state, kitchen, importer, suiImporter, suiReconciler, guideRecipes, bootstrap, howToCookApi, catalogText, styles, migration] = await Promise.all([
+    file("app/HappyKitchenApp.tsx"), file("app/api/actions/route.ts"), file("app/api/state/route.ts"), file("db/kitchen.ts"), file("app/howtocook-import.ts"), file("scripts/import-local-ocr-recipes.mjs"), file("scripts/reconcile-local-ocr-recipes.mjs"), file("db/north-china-obesity-guide.ts"), file("db/bootstrap.ts"), file("app/api/howtocook/route.ts"), file("data/howtocook-catalog.json"), file("app/globals.css"), file("drizzle/0002_glorious_charles_xavier.sql"),
   ]);
   assert.match(app, /IMPORT_HOWTOCOOK/);
   assert.match(app, /ingredientsDetailed/);
@@ -102,6 +115,9 @@ test("supports detailed recipes, full HowToCook learning and practical shopping 
   assert.doesNotMatch(app, /导入本地菜谱/);
   assert.match(suiImporter, /LOCAL_IMAGE_OCR/);
   assert.match(suiImporter, /recipe_sources/);
+  assert.match(suiReconciler, /extractExplicitIngredients/);
+  assert.match(suiReconciler, /never guesses a weight/);
+  assert.match(app, /const mineAll = data\.recipes/);
   assert.match(state, /shopping_list_items/);
   assert.match(kitchen, /required - available/);
   assert.match(importer, /parseLearningArticle/);
