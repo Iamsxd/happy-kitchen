@@ -265,7 +265,9 @@ function RecipesView({ data, busy, onAdd, onView, onOpenCatalog }: { data: AppSt
     return String(source?.source_type ?? "") === "LOCAL_IMAGE_OCR" || (recipe.tags as string[]).includes("隋卞菜谱");
   };
   const matchesQuery = (recipe: Record<string, unknown>) => `${String(recipe.title)} ${(recipe.ingredients as { name?: string }[]).map((item) => item.name).join(" ")}`.includes(query);
-  const mineAll = data.recipes.filter((recipe) => !isSuiRecipe(recipe));
+  // “我的菜谱” includes every recipe belonging to this household. The
+  // source-specific tab below is only a convenient filtered view.
+  const mineAll = data.recipes;
   const suiAll = data.recipes.filter(isSuiRecipe);
   const mine = mineAll.filter(matchesQuery);
   const sui = suiAll.filter(matchesQuery);
